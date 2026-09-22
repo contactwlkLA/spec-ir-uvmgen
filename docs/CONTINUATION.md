@@ -1,9 +1,7 @@
 # Continuation — pick up here in a new session
 
-**Revision:** 3.0 (2026-08-30 21:46 PDT)
-**Generated:** 2025-07-24
-**Last commit:** `<current>` (naming validators + ref Blueprint regenerated)
-**Git bundle:** `sessions2-backup.bundle` (local copy, gitignored, 102KB)
+**Revision:** 3.1 (2026-09-21 23:57 PDT)
+**Status:** Historical development handoff — superseded by README and docs/architecture.md for current guidance.
 
 ---
 
@@ -145,4 +143,5 @@ When you exit and re-enter:
 
 **The JSONL is the ground truth.** Everything else (`CONTINUATION.md`, git commits, bundle) is derivative. Resume the session or re-read this file to reorient.
 
-To lock the project at this point: already done — `41237af` is committed. Roll back to any commit with `git checkout <hash>`.
+Historical note: this document predates publication; private pre-publication
+history is intentionally omitted from this release.

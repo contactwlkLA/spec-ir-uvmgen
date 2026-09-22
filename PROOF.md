@@ -1,9 +1,9 @@
 # spec-ir-uvmgen — evidence and reproduction
 
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-09-22
 **Time:** 02:22 UTC
-**Status:** Initial public documentation draft; bounded demonstration evidence, not formal proof.
+**Status:** Initial public release; bounded demonstration evidence, not formal proof.
 
 ## What the headline claims mean
 

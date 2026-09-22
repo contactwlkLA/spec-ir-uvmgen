@@ -1,6 +1,6 @@
 # Agreements — PRD v0.0e / candidate-v0.0e-001
 
-**Revision:** 3.0 (2026-08-30 21:46 PDT)
+**Revision:** 3.1 (2026-09-21 23:57 PDT)
 
 Source: `../uvm_buffer_prd.md` (v0.0e) + `material_extracted/uvm_buffer_semantic_model.candidate.json` (`candidate-v0.0e-001`). Private pre-publication history is intentionally omitted from this release.
 Status: GR-009 PASS, `candidate_pending_human_approval` — GR-010 deferred

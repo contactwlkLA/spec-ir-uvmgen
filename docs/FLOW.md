@@ -1,6 +1,6 @@
 # FLOW — current state and direction
 
-**Revision:** 3.0 (2026-08-30 21:46 PDT)
+**Revision:** 3.1 (2026-09-21 23:57 PDT)
 
 Quick map of where we are, what each piece does, and what's next. Read this
 when you've lost track (you will — there are a lot of moving parts).

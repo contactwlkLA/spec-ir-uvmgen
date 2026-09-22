@@ -1,7 +1,7 @@
 # spec-ir-uvmgen
 
-**Revision:** 3.1 (2026-09-21 17:20 PDT)
-**Status:** Public documentation draft; revision promotion pending.
+**Revision:** 3.2 (2026-09-21 23:57 PDT)
+**Status:** Initial public release.
 
 A deterministic spec-to-UVM prototype for verification engineers exploring
 validated intermediate representations and reproducible code generation.

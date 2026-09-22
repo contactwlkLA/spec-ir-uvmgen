@@ -1,5 +1,5 @@
 # deferment.md
-**Revision:** 3 (2026-08-30 21:46 PDT)
+**Revision:** 3.1 (2026-09-21 23:57 PDT)
 Write-only log. Append here, don't edit or delete existing entries.
 Two kinds of entry — keep them distinct:
 - DEFERRED: still true / still owed, just not done yet

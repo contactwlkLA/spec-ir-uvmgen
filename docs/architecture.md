@@ -1,9 +1,9 @@
 # spec-ir-uvmgen architecture
 
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-09-22
 **Time:** 02:22 UTC
-**Status:** Initial public documentation draft.
+**Status:** Initial public release.
 
 ## Scope: two implemented tracks, one future integration
 
