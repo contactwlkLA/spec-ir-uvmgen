@@ -1,0 +1,2401 @@
+{
+  "schema_name": "uvm_buffer_semantic_model",
+  "schema_version": "1.0",
+  "model_revision": "candidate-v0.0e-001",
+  "source_document": "uvm_buffer_prd.md",
+  "source_prd_revision": "v0.0e",
+  "extraction_status": "candidate_pending_human_approval",
+  "generation_ready": false,
+  "parameters": [
+    {
+      "name": "MAX_CAPACITY",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "Fixed prototype requirement",
+      "mock_default": 16,
+      "mock_default_label": "mock_default",
+      "meaning": "Maximum outstanding transactions"
+    },
+    {
+      "name": "ID_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "2**ID_W >= MAX_CAPACITY",
+      "mock_default": 8,
+      "mock_default_label": "mock_default",
+      "meaning": "Transaction-ID namespace width"
+    },
+    {
+      "name": "ADDR_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "ADDR_W >= 1",
+      "mock_default": 8,
+      "mock_default_label": "mock_default",
+      "meaning": "Address width"
+    },
+    {
+      "name": "DATA_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "DATA_W >= 1",
+      "mock_default": 32,
+      "mock_default_label": "mock_default",
+      "meaning": "Read/write payload width"
+    },
+    {
+      "name": "OP_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "Must encode READ and WRITE",
+      "mock_default": 1,
+      "mock_default_label": "mock_default",
+      "meaning": "Operation width"
+    },
+    {
+      "name": "STATUS_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "Must encode OK",
+      "mock_default": 1,
+      "mock_default_label": "mock_default",
+      "meaning": "Response-status width"
+    },
+    {
+      "name": "DELAY_W",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "Must encode MAX_COMPLETION_DELAY",
+      "mock_default": 4,
+      "mock_default_label": "mock_default",
+      "meaning": "Eligibility-delay width"
+    },
+    {
+      "name": "MIN_COMPLETION_DELAY",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": ">= 1",
+      "mock_default": 1,
+      "mock_default_label": "mock_default",
+      "meaning": "Minimum legal request delay"
+    },
+    {
+      "name": "MAX_COMPLETION_DELAY",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": ">= MIN_COMPLETION_DELAY",
+      "mock_default": 8,
+      "mock_default_label": "mock_default",
+      "meaning": "Maximum legal request delay"
+    },
+    {
+      "name": "WATCHDOG_CYCLES",
+      "kind": "symbolic_parameter",
+      "symbolic": true,
+      "structural_constraint": "Fixed at 256 for v0.0d",
+      "mock_default": 256,
+      "mock_default_label": "mock_default",
+      "meaning": "Response-service-enabled liveness bound"
+    }
+  ],
+  "mock_encodings": [
+    {
+      "name": "READ",
+      "value": 0,
+      "mock_default_label": "mock_encoding",
+      "meaning": "Mock operation encoding"
+    },
+    {
+      "name": "WRITE",
+      "value": 1,
+      "mock_default_label": "mock_encoding",
+      "meaning": "Mock operation encoding"
+    },
+    {
+      "name": "OK",
+      "value": 0,
+      "mock_default_label": "mock_encoding",
+      "meaning": "Mock legal response-status encoding"
+    }
+  ],
+  "interfaces": [
+    {
+      "id": "IF-CLK-RST",
+      "kind": "clock_reset",
+      "purpose": "Single rising-edge clock and active-high synchronous reset",
+      "signals": [
+        {
+          "name": "clk",
+          "direction": "input",
+          "width_constraint": "1",
+          "meaning": "All acceptance, completion, and reset changes occur on posedge",
+          "producer": "environment"
+        },
+        {
+          "name": "rst",
+          "direction": "input",
+          "width_constraint": "1",
+          "meaning": "Synchronous reset with priority over handshakes",
+          "producer": "environment"
+        }
+      ]
+    },
+    {
+      "id": "IF-REQ",
+      "kind": "request",
+      "purpose": "Two independent request sources with active-high hold backpressure",
+      "signals": [
+        {
+          "name": "req_valid[p]",
+          "direction": "input",
+          "width_constraint": "1 for p in {0,1}",
+          "meaning": "Request present",
+          "producer": "request source"
+        },
+        {
+          "name": "req_hold[p]",
+          "direction": "output",
+          "width_constraint": "1 for p in {0,1}",
+          "meaning": "DUT prevents acceptance while high",
+          "producer": "DUT"
+        },
+        {
+          "name": "req_id[p]",
+          "direction": "input",
+          "width_constraint": "ID_W",
+          "meaning": "Transaction identity",
+          "producer": "request source"
+        },
+        {
+          "name": "req_addr[p]",
+          "direction": "input",
+          "width_constraint": "ADDR_W",
+          "meaning": "Transaction address",
+          "producer": "request source"
+        },
+        {
+          "name": "req_op[p]",
+          "direction": "input",
+          "width_constraint": "OP_W",
+          "meaning": "READ or WRITE",
+          "producer": "request source"
+        },
+        {
+          "name": "req_wdata[p]",
+          "direction": "input",
+          "width_constraint": "DATA_W",
+          "meaning": "Write payload; ignored for reads",
+          "producer": "request source"
+        },
+        {
+          "name": "req_delay[p]",
+          "direction": "input",
+          "width_constraint": "DELAY_W",
+          "meaning": "Edges after acceptance before eligibility",
+          "producer": "request source"
+        }
+      ]
+    },
+    {
+      "id": "IF-RSP",
+      "kind": "response",
+      "purpose": "One-response-at-a-time valid/ready completion channel",
+      "signals": [
+        {
+          "name": "rsp_valid",
+          "direction": "output",
+          "width_constraint": "1",
+          "meaning": "Response present",
+          "producer": "DUT"
+        },
+        {
+          "name": "rsp_ready",
+          "direction": "input",
+          "width_constraint": "1",
+          "meaning": "Environment accepts response",
+          "producer": "environment"
+        },
+        {
+          "name": "rsp_id",
+          "direction": "output",
+          "width_constraint": "ID_W",
+          "meaning": "Completed request identity",
+          "producer": "DUT"
+        },
+        {
+          "name": "rsp_rdata",
+          "direction": "output",
+          "width_constraint": "DATA_W",
+          "meaning": "Read payload; ignored for writes",
+          "producer": "DUT"
+        },
+        {
+          "name": "rsp_status",
+          "direction": "output",
+          "width_constraint": "STATUS_W",
+          "meaning": "OK for legal completion",
+          "producer": "DUT"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "ENV-001",
+      "kind": "environment_assumption",
+      "topic": "request stability",
+      "statement": "Source holds request fields stable while req_valid[p] && req_hold[p].",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "ENV-002",
+      "kind": "environment_assumption",
+      "topic": "delay range",
+      "statement": "Stimulus uses req_delay from MIN_COMPLETION_DELAY through MAX_COMPLETION_DELAY inclusive.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "ENV-003",
+      "kind": "environment_assumption",
+      "topic": "ID uniqueness",
+      "statement": "Stimulus does not present an already-outstanding ID or the same new ID on both sources; accepted violation is reported and DUT behavior is unspecified.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "ENV-004",
+      "kind": "environment_assumption",
+      "topic": "read precondition",
+      "statement": "Stimulus does not issue a read without an earlier completed write in the current reset epoch.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "ENV-005",
+      "kind": "environment_assumption",
+      "topic": "depth-blind stimulus",
+      "statement": "Stimulus obeys req_hold[p] only; it must not track, model, or condition on occupancy.",
+      "verification_status": "unchecked_by_design",
+      "rationale": "No interface-observable signal distinguishes compliant from non-compliant stimulus."
+    },
+    {
+      "id": "DUT-PROTO-001",
+      "kind": "dut_guarantee",
+      "topic": "response stability",
+      "statement": "While rsp_valid && !rsp_ready, response valid and payload fields remain stable until completion or reset.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-PROTO-002",
+      "kind": "dut_guarantee",
+      "topic": "response status",
+      "statement": "Every legal completed transaction has status OK; other encodings are reserved and illegal.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-PROTO-003",
+      "kind": "dut_guarantee",
+      "topic": "reset priority",
+      "statement": "Reset overrides request acceptance and response completion.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-PROTO-004",
+      "kind": "dut_guarantee",
+      "topic": "hold guarantee",
+      "statement": "When req_hold[p] is low at a rising clock edge and req_valid[p] is high, the request on source p is accepted at that edge, unconditionally and independent of the state of the other source.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-001",
+      "kind": "dut_guarantee",
+      "topic": "Request acceptance",
+      "statement": "Accept on a rising edge when req_valid[p] && !req_hold[p].",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-002",
+      "kind": "dut_guarantee",
+      "topic": "Response completion",
+      "statement": "Complete on a rising edge when rsp_valid && rsp_ready.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-003",
+      "kind": "dut_guarantee",
+      "topic": "Identity scope",
+      "statement": "req_id is globally unique while outstanding; duplicate avoidance is an environment obligation.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-004",
+      "kind": "dut_guarantee",
+      "topic": "ID reuse",
+      "statement": "Reuse an ID only after prior completion or reset flush.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-005",
+      "kind": "dut_guarantee",
+      "topic": "Capacity",
+      "statement": "Maximum outstanding is 16 and occupancy_next = occupancy + accepted - completed.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-006",
+      "kind": "dut_guarantee",
+      "topic": "Backpressure",
+      "statement": "Do not accept when acceptance would exceed capacity.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-007",
+      "kind": "dut_guarantee",
+      "topic": "Simultaneous acceptance",
+      "statement": "Accept both sources when both valid and at least two slots are free.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-009",
+      "kind": "dut_guarantee",
+      "topic": "Completion order",
+      "statement": "Transactions may complete out of acceptance order.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-010",
+      "kind": "dut_guarantee",
+      "topic": "Response rate",
+      "statement": "Single response channel completes at most one per cycle; consecutive completions are permitted.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-011",
+      "kind": "dut_guarantee",
+      "topic": "Pre-edge capacity",
+      "statement": "Hold uses beginning-of-edge occupancy; same-edge completion does not free a slot.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-012",
+      "kind": "dut_guarantee",
+      "topic": "Full backpressure",
+      "statement": "When pre-edge occupancy is 15 or more, req_hold[1:0] == 2'b11, including an edge on which a response completes. Depth remains 16; occupancy 16 is a transient cushion slot reachable only in the hold/accept race.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-013",
+      "kind": "dut_guarantee",
+      "topic": "Single acceptance",
+      "statement": "With a free slot and exactly one valid source, accept it.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-014",
+      "kind": "dut_guarantee",
+      "topic": "Eligibility",
+      "statement": "Accepted edge C with delay D may complete no earlier than C+D, within symbolic bounds.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LC-015",
+      "kind": "dut_guarantee",
+      "topic": "Completion selection",
+      "statement": "When multiple transactions are eligible and no response is held, any eligible transaction may be selected.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-DATA-001",
+      "kind": "dut_guarantee",
+      "topic": "Write visibility",
+      "statement": "Write updates associative memory when the write completes.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-DATA-002",
+      "kind": "dut_guarantee",
+      "topic": "Read value",
+      "statement": "Read returns latest completed write data at read completion.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-DATA-003",
+      "kind": "dut_guarantee",
+      "topic": "Same-address ordering",
+      "statement": "Visibility follows completion order, not acceptance order.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-DATA-004",
+      "kind": "dut_guarantee",
+      "topic": "Unwritten reads",
+      "statement": "Prototype stimulus excludes reads without an earlier completed write in the current epoch.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-001",
+      "kind": "dut_guarantee",
+      "topic": "Outstanding reset",
+      "statement": "First reset edge flushes outstanding, clears occupancy, cancels eligibility/watchdog, and advances epoch once.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-002",
+      "kind": "dut_guarantee",
+      "topic": "Stale responses",
+      "statement": "Pre-reset response is not presented or accepted after reset release.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-003",
+      "kind": "dut_guarantee",
+      "topic": "ID reuse after reset",
+      "statement": "Flushed IDs may be reused on first operational edge after release.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-004",
+      "kind": "dut_guarantee",
+      "topic": "Reset sampling",
+      "statement": "Synchronous reset is sampled on posedge; reset-only transition and one epoch advance on assertion.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-005",
+      "kind": "dut_guarantee",
+      "topic": "Memory reset",
+      "statement": "Reset clears DUT associative memory and oracle golden memory.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-006",
+      "kind": "dut_guarantee",
+      "topic": "Reset channel",
+      "statement": "No handshake on sampled reset edge; while held, holds are high and rsp_valid is low.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-RST-007",
+      "kind": "dut_guarantee",
+      "topic": "Reset release",
+      "statement": "Operation resumes on first rising edge with rst low.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LIVE-001",
+      "kind": "dut_guarantee",
+      "topic": "Progress",
+      "statement": "Every accepted transaction completes while reset is inactive and response service remains enabled.",
+      "verification_status": "checked",
+      "rationale": ""
+    },
+    {
+      "id": "DUT-LIVE-002",
+      "kind": "dut_guarantee",
+      "topic": "Bound",
+      "statement": "Complete within 256 response-service-enabled cycles; reset or rsp_ready low does not advance watchdog.",
+      "verification_status": "checked",
+      "rationale": ""
+    }
+  ],
+  "semantic_decisions": [
+    {
+      "id": "OD-001",
+      "topic": "Completion watchdog",
+      "status": "closed",
+      "disposition": "256 response-service-enabled cycles"
+    },
+    {
+      "id": "OD-002",
+      "topic": "Same-edge capacity",
+      "status": "closed",
+      "disposition": "Pre-edge occupancy controls hold; completion does not free a same-edge slot"
+    },
+    {
+      "id": "OD-003",
+      "topic": "Duplicate request ID",
+      "status": "closed",
+      "disposition": "Environment obligation; accepted violation is reported and subsequent DUT behavior is unspecified"
+    },
+    {
+      "id": "OD-004",
+      "topic": "Reset",
+      "status": "closed",
+      "disposition": "One clock; active-high synchronous reset dominates handshakes and clears behavioral state; flushed-ID history may persist for classification"
+    },
+    {
+      "id": "OD-005",
+      "topic": "Stale-response observability",
+      "status": "closed",
+      "disposition": "A stale-response mutation reserves its flushed ID until the injected response is observed"
+    },
+    {
+      "id": "OD-006",
+      "topic": "Completion delay",
+      "status": "closed",
+      "disposition": "Per-request eligibility delay is symbolic and bounded; mock defaults are 1 through 8"
+    },
+    {
+      "id": "OD-007",
+      "topic": "Response status",
+      "status": "closed",
+      "disposition": "Legal responses use OK; mock encoding is zero and no DUT error response is modeled"
+    },
+    {
+      "id": "OD-008",
+      "topic": "Oracle/scoreboard ownership",
+      "status": "closed",
+      "disposition": "Oracle solely owns semantic state and expected results; scoreboard pairs actual and expected records by observation_seq and reports comparisons"
+    }
+  ],
+  "permitted_nondeterminism": [
+    {
+      "id": "ND-002",
+      "topic": "Completion selection and timing",
+      "permitted_behavior": "Any eligible transaction may be selected and completion order/timing remain flexible",
+      "bounded_by": [
+        "DUT-LC-009",
+        "DUT-LC-014",
+        "DUT-LC-015",
+        "DUT-LIVE-002"
+      ],
+      "requirement_ids": [
+        "DUT-LC-015"
+      ]
+    }
+  ],
+  "observation_fields": [
+    {
+      "id": "cycle",
+      "producer": "monitor or test",
+      "model_type": "longint unsigned",
+      "meaning": "Rising-edge count in simulation"
+    },
+    {
+      "id": "observation_seq",
+      "producer": "response monitor",
+      "model_type": "longint unsigned",
+      "meaning": "Unique monotonic key for each completed response"
+    },
+    {
+      "id": "source",
+      "producer": "request monitor",
+      "model_type": "bit",
+      "meaning": "Request source 0 or 1"
+    },
+    {
+      "id": "id",
+      "producer": "sampled interface",
+      "model_type": "bit [ID_W-1:0]",
+      "meaning": "Transaction ID"
+    },
+    {
+      "id": "addr",
+      "producer": "sampled interface",
+      "model_type": "bit [ADDR_W-1:0]",
+      "meaning": "Transaction address"
+    },
+    {
+      "id": "operation",
+      "producer": "sampled interface",
+      "model_type": "bit [OP_W-1:0]",
+      "meaning": "READ or WRITE"
+    },
+    {
+      "id": "write_data",
+      "producer": "sampled interface",
+      "model_type": "bit [DATA_W-1:0]",
+      "meaning": "Accepted write payload"
+    },
+    {
+      "id": "requested_delay",
+      "producer": "sampled interface",
+      "model_type": "bit [DELAY_W-1:0]",
+      "meaning": "Accepted eligibility delay"
+    },
+    {
+      "id": "read_data",
+      "producer": "sampled interface",
+      "model_type": "bit [DATA_W-1:0]",
+      "meaning": "Completed read payload"
+    },
+    {
+      "id": "status",
+      "producer": "sampled interface",
+      "model_type": "bit [STATUS_W-1:0]",
+      "meaning": "Completed response status"
+    },
+    {
+      "id": "reset_state",
+      "producer": "reset monitor",
+      "model_type": "bit",
+      "meaning": "Sampled reset state"
+    },
+    {
+      "id": "reset_epoch",
+      "producer": "oracle",
+      "model_type": "int unsigned",
+      "meaning": "Epoch advanced per reset assertion"
+    },
+    {
+      "id": "service_counter",
+      "producer": "oracle",
+      "model_type": "longint unsigned",
+      "meaning": "Response-service-enabled cycle count"
+    },
+    {
+      "id": "outstanding_count",
+      "producer": "oracle",
+      "model_type": "int unsigned [0:MAX_CAPACITY]",
+      "meaning": "Current outstanding count"
+    },
+    {
+      "id": "violation_channel",
+      "producer": "protocol checker",
+      "model_type": "enum REQ0/REQ1/RSP/RESET/TEST",
+      "meaning": "Violation domain"
+    },
+    {
+      "id": "violated_rule",
+      "producer": "protocol checker",
+      "model_type": "string",
+      "meaning": "Stable requirement or invariant ID"
+    },
+    {
+      "id": "id_valid",
+      "producer": "protocol checker",
+      "model_type": "bit",
+      "meaning": "Whether violation has relevant ID"
+    },
+    {
+      "id": "matched_request",
+      "producer": "oracle",
+      "model_type": "OBS-001 record",
+      "meaning": "Accepted request when available"
+    },
+    {
+      "id": "compare_read_data",
+      "producer": "oracle",
+      "model_type": "bit",
+      "meaning": "Enables read-data comparison"
+    },
+    {
+      "id": "expected_read_data",
+      "producer": "oracle",
+      "model_type": "bit [DATA_W-1:0]",
+      "meaning": "Expected completed-read payload"
+    },
+    {
+      "id": "expected_status",
+      "producer": "oracle",
+      "model_type": "bit [STATUS_W-1:0]",
+      "meaning": "Expected response status"
+    },
+    {
+      "id": "req_hold",
+      "producer": "request monitor",
+      "model_type": "bit [1:0]",
+      "meaning": "Sampled req_hold per source at the rising edge"
+    },
+    {
+      "id": "req_valid",
+      "producer": "request monitor",
+      "model_type": "bit [1:0]",
+      "meaning": "Sampled req_valid per source at the rising edge"
+    },
+    {
+      "id": "pre_edge_occupancy",
+      "producer": "oracle",
+      "model_type": "int unsigned [0:MAX_CAPACITY]",
+      "meaning": "Beginning-of-edge outstanding count for the sampled edge"
+    }
+  ],
+  "observations": [
+    {
+      "id": "OBS-001",
+      "event": "Request accepted",
+      "required_field_ids": [
+        "cycle",
+        "source",
+        "id",
+        "addr",
+        "operation",
+        "write_data",
+        "requested_delay"
+      ]
+    },
+    {
+      "id": "OBS-002",
+      "event": "Response completed",
+      "required_field_ids": [
+        "observation_seq",
+        "cycle",
+        "id",
+        "read_data",
+        "status"
+      ]
+    },
+    {
+      "id": "OBS-003",
+      "event": "Reset transition",
+      "required_field_ids": [
+        "cycle",
+        "reset_state"
+      ]
+    },
+    {
+      "id": "OBS-004",
+      "event": "Test termination request",
+      "required_field_ids": [
+        "cycle",
+        "outstanding_count",
+        "reset_epoch"
+      ]
+    },
+    {
+      "id": "OBS-005",
+      "event": "Protocol violation",
+      "required_field_ids": [
+        "cycle",
+        "violation_channel",
+        "violated_rule",
+        "id_valid",
+        "id"
+      ]
+    },
+    {
+      "id": "OBS-006",
+      "event": "Edge sample: per-source req_hold and req_valid sampled at each rising edge; beginning-of-edge occupancy is the oracle's own book and is never an observed input",
+      "required_field_ids": [
+        "cycle",
+        "req_hold",
+        "req_valid"
+      ]
+    }
+  ],
+  "oracle_result": {
+    "id": "ORACLE-RESULT-001",
+    "purpose": "One expected-result record for every completed-response observation, including lifecycle-invalid responses",
+    "fields": [
+      {
+        "id": "status",
+        "producer": "sampled interface",
+        "model_type": "bit [STATUS_W-1:0]",
+        "meaning": "Completed response status"
+      },
+      {
+        "id": "reset_state",
+        "producer": "reset monitor",
+        "model_type": "bit",
+        "meaning": "Sampled reset state"
+      },
+      {
+        "id": "reset_epoch",
+        "producer": "oracle",
+        "model_type": "int unsigned",
+        "meaning": "Epoch advanced per reset assertion"
+      },
+      {
+        "id": "service_counter",
+        "producer": "oracle",
+        "model_type": "longint unsigned",
+        "meaning": "Response-service-enabled cycle count"
+      },
+      {
+        "id": "outstanding_count",
+        "producer": "oracle",
+        "model_type": "int unsigned [0:MAX_CAPACITY]",
+        "meaning": "Current outstanding count"
+      },
+      {
+        "id": "violation_channel",
+        "producer": "protocol checker",
+        "model_type": "enum REQ0/REQ1/RSP/RESET/TEST",
+        "meaning": "Violation domain"
+      },
+      {
+        "id": "violated_rule",
+        "producer": "protocol checker",
+        "model_type": "string",
+        "meaning": "Stable requirement or invariant ID"
+      },
+      {
+        "id": "id_valid",
+        "producer": "protocol checker",
+        "model_type": "bit",
+        "meaning": "Whether violation has relevant ID"
+      },
+      {
+        "id": "matched_request",
+        "producer": "oracle",
+        "model_type": "OBS-001 record",
+        "meaning": "Accepted request when available"
+      },
+      {
+        "id": "compare_read_data",
+        "producer": "oracle",
+        "model_type": "bit",
+        "meaning": "Enables read-data comparison"
+      },
+      {
+        "id": "expected_read_data",
+        "producer": "oracle",
+        "model_type": "bit [DATA_W-1:0]",
+        "meaning": "Expected completed-read payload"
+      },
+      {
+        "id": "expected_status",
+        "producer": "oracle",
+        "model_type": "bit [STATUS_W-1:0]",
+        "meaning": "Expected response status"
+      },
+      {
+        "id": "matched_request",
+        "producer": "oracle",
+        "model_type": "OBS-001 record",
+        "meaning": "Accepted request when available"
+      },
+      {
+        "id": "compare_read_data",
+        "producer": "oracle",
+        "model_type": "bit",
+        "meaning": "Enables read-data comparison"
+      },
+      {
+        "id": "expected_read_data",
+        "producer": "oracle",
+        "model_type": "bit [DATA_W-1:0]",
+        "meaning": "Expected completed-read payload"
+      },
+      {
+        "id": "expected_status",
+        "producer": "oracle",
+        "model_type": "bit [STATUS_W-1:0]",
+        "meaning": "Expected response status"
+      }
+    ],
+    "publishes_for_observation_id": "OBS-002",
+    "pairing_key": "observation_seq"
+  },
+  "hold_violation": {
+    "id": "HOLD-VIOLATION-001",
+    "purpose": "One hold-violation record for every INV-016 failure: hold state inconsistent with pre-edge occupancy, or acceptance while hold is low",
+    "fields": [
+      {
+        "id": "cycle",
+        "producer": "monitor or test",
+        "model_type": "longint unsigned",
+        "meaning": "Rising-edge count in simulation"
+      },
+      {
+        "id": "source",
+        "producer": "request monitor",
+        "model_type": "bit",
+        "meaning": "Request source 0 or 1"
+      },
+      {
+        "id": "violated_rule",
+        "producer": "protocol checker",
+        "model_type": "string",
+        "meaning": "Stable requirement or invariant ID"
+      },
+      {
+        "id": "req_hold",
+        "producer": "request monitor",
+        "model_type": "bit [1:0]",
+        "meaning": "Sampled req_hold per source at the rising edge"
+      },
+      {
+        "id": "pre_edge_occupancy",
+        "producer": "oracle",
+        "model_type": "int unsigned [0:MAX_CAPACITY]",
+        "meaning": "Beginning-of-edge outstanding count for the sampled edge"
+      }
+    ],
+    "publishes_for_observation_id": "OBS-006"
+  },
+  "state_objects": [
+    {
+      "id": "STATE-OUTSTANDING",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Outstanding request associative table"
+    },
+    {
+      "id": "STATE-OCCUPANCY",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Occupancy"
+    },
+    {
+      "id": "STATE-EPOCH",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Reset epoch"
+    },
+    {
+      "id": "STATE-SERVICE",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Response-service counter"
+    },
+    {
+      "id": "STATE-WATCHDOG",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Per-request watchdog state"
+    },
+    {
+      "id": "STATE-GOLDEN-MEM",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "semantic",
+      "description": "Golden associative memory"
+    },
+    {
+      "id": "STATE-ID-HISTORY",
+      "owner_component_id": "COMP-ORACLE",
+      "semantic_or_verification_only": "verification_only",
+      "description": "Verification-only completed and flushed ID history"
+    }
+  ],
+  "component_ownership": [
+    {
+      "id": "COMP-ORACLE",
+      "responsibility": "Sole owner of lifecycle semantic state, verification-only ID history, expected-result production, and timekeeping from read-only clk/rst/rsp_ready",
+      "authoritative_state_ids": [
+        "STATE-OUTSTANDING",
+        "STATE-OCCUPANCY",
+        "STATE-EPOCH",
+        "STATE-SERVICE",
+        "STATE-WATCHDOG",
+        "STATE-GOLDEN-MEM",
+        "STATE-ID-HISTORY"
+      ],
+      "consumes_observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "produces_contract_ids": [
+        "ORACLE-RESULT-001"
+      ],
+      "pairs_by": null
+    },
+    {
+      "id": "COMP-SCOREBOARD",
+      "responsibility": "Buffer and pair actual response and oracle result by observation_seq; compare and report without duplicate semantic state",
+      "authoritative_state_ids": [],
+      "consumes_observation_ids": [
+        "OBS-002"
+      ],
+      "produces_contract_ids": [],
+      "pairs_by": "observation_seq"
+    },
+    {
+      "id": "COMP-REQ-MONITORS",
+      "responsibility": "Publish request accepted observations and protocol facts for both sources",
+      "authoritative_state_ids": [],
+      "consumes_observation_ids": [],
+      "produces_contract_ids": [],
+      "pairs_by": null
+    },
+    {
+      "id": "COMP-RSP-MONITOR",
+      "responsibility": "Publish response completion observations with monotonically increasing observation_seq",
+      "authoritative_state_ids": [],
+      "consumes_observation_ids": [],
+      "produces_contract_ids": [],
+      "pairs_by": "observation_seq"
+    },
+    {
+      "id": "COMP-RESET-MONITOR",
+      "responsibility": "Publish raw reset transitions and own no epoch or lifecycle state",
+      "authoritative_state_ids": [],
+      "consumes_observation_ids": [],
+      "produces_contract_ids": [],
+      "pairs_by": null
+    },
+    {
+      "id": "COMP-TEST",
+      "responsibility": "Own objections, stimulus, drain policy, and zero-outstanding termination guard",
+      "authoritative_state_ids": [],
+      "consumes_observation_ids": [
+        "OBS-004"
+      ],
+      "produces_contract_ids": [],
+      "pairs_by": null
+    }
+  ],
+  "checkers": [
+    {
+      "id": "CHK-PROTOCOL",
+      "mechanism": "monitor and assertions",
+      "responsibility": "Request hold and response stall stability plus reset handshake rules",
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-010",
+        "INV-011",
+        "INV-014"
+      ],
+      "assertion_ids": [
+        "AST-REQ-HOLD",
+        "AST-RSP-STALL"
+      ]
+    },
+    {
+      "id": "CHK-LIFECYCLE",
+      "mechanism": "associative oracle",
+      "responsibility": "Accepted and completed lifecycle matching",
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-002",
+        "INV-003",
+        "INV-006"
+      ],
+      "assertion_ids": []
+    },
+    {
+      "id": "CHK-CAPACITY",
+      "mechanism": "oracle invariant and assertion",
+      "responsibility": "Capacity, occupancy, and hold accounting",
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-006"
+      ],
+      "invariant_ids": [
+        "INV-004",
+        "INV-009",
+        "INV-016"
+      ],
+      "assertion_ids": [
+        "AST-CAPACITY"
+      ]
+    },
+    {
+      "id": "CHK-DATA",
+      "mechanism": "lifecycle oracle",
+      "responsibility": "Expected identity, data, status, and completion-order visibility",
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-008",
+        "INV-012"
+      ],
+      "assertion_ids": []
+    },
+    {
+      "id": "CHK-LIVENESS",
+      "mechanism": "watchdog and assertion",
+      "responsibility": "Bounded completion and termination",
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003",
+        "OBS-004"
+      ],
+      "invariant_ids": [
+        "INV-007",
+        "INV-013",
+        "INV-015"
+      ],
+      "assertion_ids": [
+        "AST-WATCHDOG"
+      ]
+    }
+  ],
+  "assertions": [
+    {
+      "id": "AST-REQ-HOLD",
+      "rule": "Request fields are stable while req_valid && req_hold",
+      "requirement_ids": [
+        "ENV-001"
+      ]
+    },
+    {
+      "id": "AST-RSP-STALL",
+      "rule": "Response fields are stable while rsp_valid && !rsp_ready",
+      "requirement_ids": [
+        "DUT-PROTO-001"
+      ]
+    },
+    {
+      "id": "AST-CAPACITY",
+      "rule": "Occupancy and acceptance obey capacity and pre-edge rules",
+      "requirement_ids": [
+        "DUT-LC-005",
+        "DUT-LC-006",
+        "DUT-LC-011"
+      ]
+    },
+    {
+      "id": "AST-WATCHDOG",
+      "rule": "No transaction exceeds the response-service-enabled bound",
+      "requirement_ids": [
+        "DUT-LIVE-002"
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "id": "INV-001",
+      "rule": "Every accepted transaction creates exactly one outstanding entry",
+      "requirement_ids": [
+        "DUT-LC-001"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ]
+    },
+    {
+      "id": "INV-002",
+      "rule": "Every completed response matches one outstanding transaction",
+      "requirement_ids": [
+        "DUT-LC-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ]
+    },
+    {
+      "id": "INV-003",
+      "rule": "Duplicate and unknown completions fail",
+      "requirement_ids": [
+        "DUT-LC-003"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "decision_ids": [
+        "OD-003"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ]
+    },
+    {
+      "id": "INV-004",
+      "rule": "Occupancy remains between zero and 16",
+      "requirement_ids": [
+        "DUT-LC-005",
+        "DUT-LC-006"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-CAPACITY"
+      ]
+    },
+    {
+      "id": "INV-005",
+      "rule": "Reset removes all outstanding entries and advances epoch",
+      "requirement_ids": [
+        "DUT-RST-001",
+        "DUT-RST-004"
+      ],
+      "observation_ids": [
+        "OBS-003"
+      ],
+      "decision_ids": [
+        "OD-004"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ]
+    },
+    {
+      "id": "INV-006",
+      "rule": "A stale pre-reset response fails after reset deassertion",
+      "requirement_ids": [
+        "DUT-RST-002"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-003"
+      ],
+      "decision_ids": [
+        "OD-005"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ]
+    },
+    {
+      "id": "INV-007",
+      "rule": "Normal termination requires zero outstanding",
+      "requirement_ids": [],
+      "observation_ids": [
+        "OBS-004"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ]
+    },
+    {
+      "id": "INV-008",
+      "rule": "Read response data follows data requirements",
+      "requirement_ids": [
+        "DUT-DATA-001",
+        "DUT-DATA-002",
+        "DUT-DATA-003",
+        "DUT-DATA-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-DATA"
+      ]
+    },
+    {
+      "id": "INV-009",
+      "rule": "Occupancy equals outstanding table size after every edge",
+      "requirement_ids": [
+        "DUT-LC-005",
+        "DUT-LC-011"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "decision_ids": [
+        "OD-002"
+      ],
+      "checker_ids": [
+        "CHK-CAPACITY"
+      ]
+    },
+    {
+      "id": "INV-010",
+      "rule": "Request fields remain stable while valid and held",
+      "requirement_ids": [
+        "ENV-001"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-005"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ]
+    },
+    {
+      "id": "INV-011",
+      "rule": "Response fields remain stable while valid and not ready",
+      "requirement_ids": [
+        "DUT-PROTO-001"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ]
+    },
+    {
+      "id": "INV-012",
+      "rule": "Every legal completed response has OK status",
+      "requirement_ids": [
+        "DUT-PROTO-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "decision_ids": [
+        "OD-007"
+      ],
+      "checker_ids": [
+        "CHK-DATA"
+      ]
+    },
+    {
+      "id": "INV-013",
+      "rule": "No outstanding transaction exceeds 256 service-enabled cycles",
+      "requirement_ids": [
+        "DUT-LIVE-001",
+        "DUT-LIVE-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "decision_ids": [
+        "OD-001"
+      ],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ]
+    },
+    {
+      "id": "INV-014",
+      "rule": "No request or response handshake occurs while reset asserted",
+      "requirement_ids": [
+        "DUT-PROTO-003",
+        "DUT-RST-006"
+      ],
+      "observation_ids": [
+        "OBS-003",
+        "OBS-005"
+      ],
+      "decision_ids": [
+        "OD-004"
+      ],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ]
+    },
+    {
+      "id": "INV-015",
+      "rule": "Every response observation yields exactly one oracle result and one paired comparison",
+      "requirement_ids": [],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "decision_ids": [
+        "OD-008"
+      ],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ]
+    },
+    {
+      "id": "INV-016",
+      "rule": "Hold reflects pre-edge occupancy against the 15 threshold; hold-low implies acceptance",
+      "requirement_ids": [
+        "DUT-PROTO-004"
+      ],
+      "observation_ids": [
+        "OBS-006"
+      ],
+      "decision_ids": [],
+      "checker_ids": [
+        "CHK-CAPACITY"
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "id": "MUT-001",
+      "fault": "duplicate completion",
+      "expected_detection": "Lifecycle oracle reports duplicate completion",
+      "trace_ids": [
+        "IT-002"
+      ],
+      "reserved_id_until_observed": true
+    },
+    {
+      "id": "MUT-002",
+      "fault": "unknown completion",
+      "expected_detection": "Lifecycle oracle reports unknown ID",
+      "trace_ids": [
+        "IT-001"
+      ],
+      "reserved_id_until_observed": false
+    },
+    {
+      "id": "MUT-003",
+      "fault": "corrupted response data",
+      "expected_detection": "Scoreboard reports payload mismatch",
+      "trace_ids": [
+        "IT-005"
+      ],
+      "reserved_id_until_observed": false
+    },
+    {
+      "id": "MUT-004",
+      "fault": "stale response after reset",
+      "expected_detection": "Oracle reports stale response",
+      "trace_ids": [
+        "IT-006"
+      ],
+      "reserved_id_until_observed": true
+    },
+    {
+      "id": "MUT-005",
+      "fault": "response payload changed while stalled",
+      "expected_detection": "Protocol checker reports stall instability",
+      "trace_ids": [
+        "IT-010"
+      ],
+      "reserved_id_until_observed": false
+    },
+    {
+      "id": "MUT-006",
+      "fault": "watchdog expiration",
+      "expected_detection": "Watchdog reports liveness failure",
+      "trace_ids": [
+        "IT-008"
+      ],
+      "reserved_id_until_observed": false
+    }
+  ],
+  "legal_traces": [
+    {
+      "id": "LT-001",
+      "kind": "legal",
+      "scenario": "Two accepted requests complete in reverse order",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LC-001",
+        "DUT-LC-002",
+        "DUT-LC-009"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-002"
+      ]
+    },
+    {
+      "id": "LT-002",
+      "kind": "legal",
+      "scenario": "Both sources accept in one cycle while req_hold is low on both",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LC-007"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "invariant_ids": [
+        "INV-004"
+      ]
+    },
+    {
+      "id": "LT-004",
+      "kind": "legal",
+      "scenario": "ID reuse after completion",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LC-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-001"
+      ]
+    },
+    {
+      "id": "LT-005",
+      "kind": "legal",
+      "scenario": "Synchronous reset with outstanding transactions",
+      "expected_result": "Outstanding and memory state flush; IDs reusable after release",
+      "requirement_ids": [
+        "DUT-RST-001",
+        "DUT-RST-003"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "invariant_ids": [
+        "INV-005",
+        "INV-006"
+      ]
+    },
+    {
+      "id": "LT-006",
+      "kind": "legal",
+      "scenario": "Minimum and maximum delays become eligible independently and complete out of order",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LC-009",
+        "DUT-LC-014",
+        "DUT-LC-015"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ]
+    },
+    {
+      "id": "LT-007",
+      "kind": "legal",
+      "scenario": "Completed write followed by same-address read",
+      "expected_result": "Read returns completed write data",
+      "requirement_ids": [
+        "DUT-DATA-001",
+        "DUT-DATA-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-008"
+      ]
+    },
+    {
+      "id": "LT-008",
+      "kind": "legal",
+      "scenario": "Same-address completion differs from acceptance order",
+      "expected_result": "Visibility follows completion order",
+      "requirement_ids": [
+        "DUT-DATA-003"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-008"
+      ]
+    },
+    {
+      "id": "LT-009",
+      "kind": "legal",
+      "scenario": "Transaction completes by 256th service-enabled cycle",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LIVE-001",
+        "DUT-LIVE-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ]
+    },
+    {
+      "id": "LT-010",
+      "kind": "legal",
+      "scenario": "Request stable over held cycles",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "ENV-001"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "invariant_ids": [
+        "INV-010"
+      ]
+    },
+    {
+      "id": "LT-011",
+      "kind": "legal",
+      "scenario": "Response stable while ready is low then completes",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-PROTO-001",
+        "DUT-LC-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-011"
+      ]
+    },
+    {
+      "id": "LT-012",
+      "kind": "legal",
+      "scenario": "Full occupancy and same-edge response",
+      "expected_result": "Response completes; request stays held; next occupancy 15",
+      "requirement_ids": [
+        "DUT-LC-011",
+        "DUT-LC-012",
+        "DUT-PROTO-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-004",
+        "INV-009"
+      ]
+    },
+    {
+      "id": "LT-013",
+      "kind": "legal",
+      "scenario": "Exactly one source valid while req_hold[p] is low",
+      "expected_result": "Valid request accepted",
+      "requirement_ids": [
+        "DUT-LC-013"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "invariant_ids": [
+        "INV-001"
+      ]
+    },
+    {
+      "id": "LT-014",
+      "kind": "legal",
+      "scenario": "Responses complete on consecutive edges",
+      "expected_result": "Pass",
+      "requirement_ids": [
+        "DUT-LC-010"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-002"
+      ]
+    }
+  ],
+  "illegal_traces": [
+    {
+      "id": "IT-001",
+      "kind": "illegal",
+      "scenario": "Completion for unknown ID",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-LC-002"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-002",
+        "INV-003"
+      ]
+    },
+    {
+      "id": "IT-002",
+      "kind": "illegal",
+      "scenario": "Duplicate completion",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-LC-002",
+        "DUT-LC-003"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-002",
+        "INV-003"
+      ]
+    },
+    {
+      "id": "IT-003",
+      "kind": "illegal",
+      "scenario": "Acceptance beyond capacity",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-LC-005",
+        "DUT-LC-006"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "invariant_ids": [
+        "INV-004"
+      ]
+    },
+    {
+      "id": "IT-004",
+      "kind": "illegal",
+      "scenario": "ID reuse while outstanding",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-LC-003",
+        "DUT-LC-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-003"
+      ]
+    },
+    {
+      "id": "IT-005",
+      "kind": "illegal",
+      "scenario": "Response payload mismatch",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-DATA-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-008"
+      ]
+    },
+    {
+      "id": "IT-006",
+      "kind": "illegal",
+      "scenario": "Pre-reset response after reset deassertion",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-RST-002"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-003"
+      ],
+      "invariant_ids": [
+        "INV-006"
+      ]
+    },
+    {
+      "id": "IT-007",
+      "kind": "illegal",
+      "scenario": "Termination with outstanding transactions",
+      "expected_result": "Fail",
+      "requirement_ids": [],
+      "observation_ids": [
+        "OBS-004"
+      ],
+      "invariant_ids": [
+        "INV-007"
+      ]
+    },
+    {
+      "id": "IT-008",
+      "kind": "illegal",
+      "scenario": "Outstanding transaction exceeds 256 service-enabled cycles",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-LIVE-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ]
+    },
+    {
+      "id": "IT-009",
+      "kind": "illegal",
+      "scenario": "Request fields change while held",
+      "expected_result": "Illegal stimulus failure",
+      "requirement_ids": [
+        "ENV-001"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-010"
+      ]
+    },
+    {
+      "id": "IT-010",
+      "kind": "illegal",
+      "scenario": "Response fields change while stalled",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-PROTO-001"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-011"
+      ]
+    },
+    {
+      "id": "IT-011",
+      "kind": "illegal",
+      "scenario": "Delay outside configured range",
+      "expected_result": "Illegal stimulus failure",
+      "requirement_ids": [
+        "ENV-002"
+      ],
+      "observation_ids": [
+        "OBS-005"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ]
+    },
+    {
+      "id": "IT-012",
+      "kind": "illegal",
+      "scenario": "Legal completion reports non-OK status",
+      "expected_result": "Fail",
+      "requirement_ids": [
+        "DUT-PROTO-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "invariant_ids": [
+        "INV-012"
+      ]
+    }
+  ],
+  "traceability": [
+    {
+      "requirement_ids": [
+        "DUT-LC-001",
+        "DUT-LC-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-002"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-001"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "ENV-001"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ],
+      "invariant_ids": [
+        "INV-010"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-010",
+        "IT-009"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "ENV-002"
+      ],
+      "observation_ids": [
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "IT-011"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "ENV-003"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ],
+      "invariant_ids": [
+        "INV-003"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "IT-004"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "ENV-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-DATA"
+      ],
+      "invariant_ids": [
+        "INV-008"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-007"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-PROTO-001"
+      ],
+      "observation_ids": [
+        "OBS-002",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ],
+      "invariant_ids": [
+        "INV-011"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-011",
+        "IT-010"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-PROTO-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-DATA"
+      ],
+      "invariant_ids": [
+        "INV-012"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "IT-012"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-PROTO-003"
+      ],
+      "observation_ids": [
+        "OBS-003",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ],
+      "invariant_ids": [
+        "INV-014"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-005"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-LC-003",
+        "DUT-LC-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-003"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-004",
+        "IT-004"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-LC-005",
+        "DUT-LC-006",
+        "DUT-LC-007",
+        "DUT-LC-011",
+        "DUT-LC-012",
+        "DUT-LC-013"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-CAPACITY"
+      ],
+      "invariant_ids": [
+        "INV-004",
+        "INV-009"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-002",
+        "LT-012",
+        "LT-013",
+        "IT-003"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-PROTO-004"
+      ],
+      "observation_ids": [
+        "OBS-006"
+      ],
+      "checker_ids": [
+        "CHK-CAPACITY"
+      ],
+      "invariant_ids": [
+        "INV-016"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-012"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "ENV-005"
+      ],
+      "observation_ids": [
+        "OBS-001"
+      ],
+      "checker_ids": [],
+      "invariant_ids": [],
+      "assertion_ids": [],
+      "primary_trace_ids": []
+    },
+    {
+      "requirement_ids": [
+        "DUT-LC-009",
+        "DUT-LC-010",
+        "DUT-LC-014",
+        "DUT-LC-015"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-002"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-001",
+        "LT-006",
+        "LT-014"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-DATA-001",
+        "DUT-DATA-002",
+        "DUT-DATA-003",
+        "DUT-DATA-004"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-DATA"
+      ],
+      "invariant_ids": [
+        "INV-008"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-007",
+        "LT-008",
+        "IT-005"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-RST-001",
+        "DUT-RST-004",
+        "DUT-RST-005",
+        "DUT-RST-006",
+        "DUT-RST-007"
+      ],
+      "observation_ids": [
+        "OBS-003",
+        "OBS-005"
+      ],
+      "checker_ids": [
+        "CHK-PROTOCOL"
+      ],
+      "invariant_ids": [
+        "INV-005",
+        "INV-014"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-005"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-RST-002",
+        "DUT-RST-003"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "checker_ids": [
+        "CHK-LIFECYCLE"
+      ],
+      "invariant_ids": [
+        "INV-005",
+        "INV-006"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-005",
+        "IT-006"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-LIVE-001",
+        "DUT-LIVE-002"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ],
+      "invariant_ids": [
+        "INV-013"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-009",
+        "IT-008"
+      ]
+    },
+    {
+      "requirement_ids": [
+        "DUT-LC-002"
+      ],
+      "observation_ids": [
+        "OBS-002"
+      ],
+      "checker_ids": [
+        "CHK-LIVENESS"
+      ],
+      "invariant_ids": [
+        "INV-015"
+      ],
+      "assertion_ids": [],
+      "primary_trace_ids": [
+        "LT-001",
+        "IT-001"
+      ]
+    }
+  ],
+  "generation_gates": [
+    {
+      "id": "GR-001",
+      "condition": "Signals and transaction fields have direction, width/model type, producer, and meaning",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [
+        "DUT-PROTO-001"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-002",
+      "condition": "Every semantic state transition has an observable trigger and state effect",
+      "status": "satisfied_by_prd",
+      "requirement_ids": [
+        "DUT-LC-001",
+        "DUT-LC-002",
+        "DUT-RST-001"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002",
+        "OBS-003"
+      ],
+      "invariant_ids": [
+        "INV-001",
+        "INV-005"
+      ],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-003",
+      "condition": "Each component has one responsibility and authoritative state has one owner",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": [
+        "OD-008"
+      ]
+    },
+    {
+      "id": "GR-004",
+      "condition": "Simultaneous-edge behavior is deterministic or explicitly nondeterministic (v0.0e: all simultaneous-edge behavior is deterministic; final-slot arbitration removed with the symmetric-hold rework)",
+      "status": "satisfied_by_prd",
+      "requirement_ids": [
+        "DUT-LC-015"
+      ],
+      "observation_ids": [
+        "OBS-001",
+        "OBS-002"
+      ],
+      "invariant_ids": [],
+      "decision_ids": [
+        "OD-002"
+      ]
+    },
+    {
+      "id": "GR-005",
+      "condition": "Assumptions, guarantees, mock defaults, and verification-only constraints remain distinct",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [
+        "ENV-001",
+        "DUT-PROTO-001"
+      ],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-006",
+      "condition": "Every normative requirement maps to observation and checker/invariant/assertion",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-007",
+      "condition": "Existing requirement IDs remain stable",
+      "status": "satisfied_by_prd",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-008",
+      "condition": "No blocking semantic-closure decision remains open",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": [
+        "OD-001",
+        "OD-008"
+      ]
+    },
+    {
+      "id": "GR-009",
+      "condition": "Candidate semantic model validates against schema with no unresolved references",
+      "status": "satisfied_by_validator",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": []
+    },
+    {
+      "id": "GR-010",
+      "condition": "Later generation manifest records mock parameters, encodings, source, and generator revision",
+      "status": "deferred_later_stage",
+      "requirement_ids": [],
+      "observation_ids": [],
+      "invariant_ids": [],
+      "decision_ids": []
+    }
+  ]
+}

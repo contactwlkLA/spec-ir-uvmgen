@@ -1,0 +1,171 @@
+{
+  "spec_source": "my_hardware_spec.md",
+  "block_name": "simple_timer",
+  "shared_assets": {
+    "interfaces": {
+      "clk_rst_vif": {
+        "key": "clk_rst_vif",
+        "type": "virtual clk_rst_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "clk",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rst_n",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          }
+        ]
+      },
+      "apb_ctrl_vif": {
+        "key": "apb_ctrl_vif",
+        "type": "virtual apb_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "psel",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "penable",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "pwrite",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "paddr",
+            "width": 8,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "pwdata",
+            "width": 32,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "prdata",
+            "width": 32,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "pready",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          }
+        ]
+      },
+      "irq_out_vif": {
+        "key": "irq_out_vif",
+        "type": "virtual irq_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "irq_out",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          }
+        ]
+      }
+    }
+  },
+  "instances": {
+    "envs": {
+      "simple_timer_env": {
+        "instance_name": "m_env",
+        "class_name": "simple_timer_env",
+        "components": {
+          "m_apb_agent": {
+            "instance_name": "m_apb_agent",
+            "class_name": "amba_apb_agent",
+            "role": "active_agent",
+            "vif": "apb_ctrl_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_irq_agent": {
+            "instance_name": "m_irq_agent",
+            "class_name": "irq_monitor_agent",
+            "role": "passive_agent",
+            "vif": "irq_out_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_regmodel": {
+            "instance_name": "m_regmodel",
+            "class_name": "simple_timer_reg_block",
+            "role": "regmodel",
+            "vif": null,
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_reg_adapter": {
+            "instance_name": "m_reg_adapter",
+            "class_name": "simple_timer_reg_adapter",
+            "role": "reg_adapter",
+            "vif": null,
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_reg_predictor": {
+            "instance_name": "m_reg_predictor",
+            "class_name": "uvm_reg_predictor",
+            "role": "reg_predictor",
+            "vif": null,
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_scoreboard": {
+            "instance_name": "m_scoreboard",
+            "class_name": "simple_timer_scoreboard",
+            "role": "scoreboard",
+            "vif": null,
+            "confidence": "explicit",
+            "children": {}
+          }
+        },
+        "confidence": "explicit"
+      }
+    }
+  },
+  "config_db": [
+    {
+      "target_instance": "m_env",
+      "interface_ref": "clk_rst_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_apb_agent",
+      "interface_ref": "apb_ctrl_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_irq_agent",
+      "interface_ref": "irq_out_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    }
+  ]
+}
