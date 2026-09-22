@@ -1,6 +1,6 @@
 # spec-ir-uvmgen
 
-**Revision:** 3.2 (2026-09-21 23:57 PDT)
+**Revision:** 3.3 (2026-09-21 23:57 PDT)
 **Status:** Initial public release.
 
 A deterministic spec-to-UVM prototype for verification engineers exploring
@@ -124,4 +124,5 @@ stories concern the separate buffer oracle.
 ## License and attribution
 
 [MIT License](LICENSE). spec-ir-uvmgen builds on ideas from the cited paper
-HAVEN (arXiv:2604.27643); it is not a reproduction of that project's results.
+[HAVEN (arXiv:2604.27643)](https://arxiv.org/abs/2604.27643); it is not a
+reproduction of that project's results.

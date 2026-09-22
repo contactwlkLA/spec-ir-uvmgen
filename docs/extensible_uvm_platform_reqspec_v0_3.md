@@ -1,6 +1,6 @@
 # Requirement Spec: Extensible Spec-to-UVM Verification Platform
 **Status:** Draft v0.3 — pre-gap-review
-**Lineage:** Inspired by HAVEN (arXiv:2604.27643) — not a duplication of it; this platform explores an adjacent architectural question HAVEN's own scope didn't target.
+**Lineage:** Inspired by [HAVEN (arXiv:2604.27643)](https://arxiv.org/abs/2604.27643) — not a duplication of it; this platform explores an adjacent architectural question HAVEN's own scope didn't target.
 **Not yet resolved / explicitly open:** marked `[OPEN]` throughout
 
 **Changelog from v0.2:**

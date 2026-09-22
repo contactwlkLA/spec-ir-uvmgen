@@ -12,7 +12,7 @@
 
 ## 1. Problem
 
-HAVEN (arXiv:2604.27643) shows LLM-based UVM generation works when LLMs
+HAVEN ([arXiv:2604.27643](https://arxiv.org/abs/2604.27643)) shows LLM-based UVM generation works when LLMs
 are bounded to structured extraction and code emission is delegated to
 deterministic renderers. But HAVEN's renderer targets direct signal
 wiring — appropriate for single-IP scopes, but structurally caps output
