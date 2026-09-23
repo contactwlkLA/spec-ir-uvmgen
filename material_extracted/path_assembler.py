@@ -207,6 +207,24 @@ def validate_blueprint(blueprint: dict) -> list[str]:
                 f"but never referenced by any config_db entry"
             )
 
+    # 4. Shared interface compatibility check
+    by_type: dict[str, tuple[str, list[tuple[str, int, str]]]] = {}
+    for key, iface in interfaces.items():
+        bare = iface.get("type", "").replace("virtual ", "").strip()
+        signals = [
+            (s["name"], s.get("width", 1), s["direction"])
+            for s in iface.get("signals", [])
+        ]
+        if bare not in by_type:
+            by_type[bare] = (key, signals)
+        else:
+            first_key, first_signals = by_type[bare]
+            if signals != first_signals:
+                issues.append(
+                    f"interface type conflict for '{bare}': '{first_key}' and '{key}' "
+                    f"declare incompatible signals"
+                )
+
     return issues
 
 

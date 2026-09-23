@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Render the public architecture overview; not implementation evidence.
 
-Revision: 3
+Revision: 4
 Date: 2026-09-22
-Time: 02:32 UTC
+Time: 22:52 UTC
 
 Requires Pillow and DejaVu Sans (regular and bold) fonts discoverable by Pillow.
 These are optional diagram-generation tools, not project runtime dependencies.
@@ -16,7 +16,7 @@ import math
 
 from PIL import Image, ImageDraw, ImageFont
 
-WIDTH, HEIGHT, SCALE = 1600, 1190, 2
+WIDTH, HEIGHT, SCALE = 1600, 1510, 2
 BG = '#f7f9fc'
 INK = '#172033'
 TEXT = '#35465e'
@@ -117,13 +117,26 @@ text(986, 895, 'events', 19)
 text(40, 922, 'Separate from the timer IR.', 21, INK, True)
 text(40, 958, 'No oracle is generated here.', 21)
 
+text(40, 1030, 'BUFFER  /  structural render path (hand-authored Blueprint → SV skeleton)', 25, PURPLE, True)
+box(40, 1080, 340, 200, 'PRD topology',
+    'uvm_buffer_prd.md \u00a76\nHand-authored mapping\nD1/D2 mock parameters', PURPLE)
+box(435, 1080, 350, 200, 'Validated Blueprint',
+    'Pydantic schema checks\n5 scopes \u00b7 shared keys\nT3-only stub contract', PURPLE)
+box(840, 1080, 350, 200, 'UVM renderer',
+    'Interface dedup + scopes\nJinja2 templates\nSeven SV skeleton files', PURPLE)
+box(1245, 1080, 315, 200, 'Render evidence',
+    '10 content checks\n2 defective copies:\nrejected', GREEN)
+for start, end in [(380, 435), (785, 840), (1190, 1245)]:
+    arrow([(start, 1180), (end - 5, 1180)])
+text(40, 1295, 'Hand-authored structural mapping, not automatic extraction; timer output unchanged (byte-identical baseline).', 21)
+
 # Dashed boundary marks future integration, not an implemented data path.
 for x in range(40, 1560, 22):
-    draw.line([(x * SCALE, 1050 * SCALE), (min(x + 12, 1560) * SCALE, 1050 * SCALE)],
+    draw.line([(x * SCALE, 1370 * SCALE), (min(x + 12, 1560) * SCALE, 1370 * SCALE)],
               fill=AMBER, width=2 * SCALE)
-text(40, 1071, 'FUTURE — DUT + UVM simulation → monitor observations → oracle integration', 25, AMBER, True)
-text(40, 1112, 'DUT/clock/reset hookup, functional agents/RAL/scoreboard, and simulation remain unverified.', 22)
-text(40, 1152, 'Evidence boundaries and reproduction commands: PROOF.md   ·   Architecture detail: docs/architecture.md', 18, GRAY)
+text(40, 1391, 'FUTURE — DUT + UVM simulation → monitor observations → oracle integration', 25, AMBER, True)
+text(40, 1432, 'DUT/clock/reset hookup, functional agents/RAL/scoreboard, and simulation remain unverified.', 22)
+text(40, 1472, 'Evidence boundaries and reproduction commands: PROOF.md   ·   Architecture detail: docs/architecture.md', 18, GRAY)
 
 output = Path(__file__).resolve().with_name('spec-ir-uvmgen-architecture.png')
 image.save(output)

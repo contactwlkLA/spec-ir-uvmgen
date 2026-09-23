@@ -38,7 +38,12 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "material_extracted"))
 from blueprint_schema import Blueprint as SemanticIR  # noqa: E402
-from blueprint_ir_split import Blueprint as ComposedBlueprint, ImplementationContract  # noqa: E402
+from blueprint_ir_split import (  # noqa: E402
+    Blueprint as ComposedBlueprint,
+    ImplementationContract,
+    TIMER_STUBS,
+    BUFFER_STUBS,
+)
 from path_assembler import assemble_scopes  # noqa: E402
 
 
@@ -222,12 +227,65 @@ def _write(path: Path, content: str) -> None:
 # the Jinja env, and the output directory, and writes its SV file(s).
 # ---------------------------------------------------------------------------
 
+def check_interface_compatibility(interfaces: dict[str, dict]) -> dict[str, dict]:
+    """Check that interface assets reusing the same interface type have compatible
+    signal declarations.
+
+    Returns a dict mapping bare_type -> canonical iface dict (one per unique type).
+    Raises ValueError on any conflict between assets sharing a type.
+    """
+    by_type: dict[str, tuple[str, dict, list[tuple[str, int, str]]]] = {}
+    canonical_ifaces: dict[str, dict] = {}
+
+    for key, iface in interfaces.items():
+        type_bare = _bare_type(iface["type"])
+        signals = [
+            (s["name"], s.get("width", 1), s["direction"])
+            for s in iface.get("signals", [])
+        ]
+        if type_bare not in by_type:
+            by_type[type_bare] = (key, iface, signals)
+            canonical_ifaces[type_bare] = {**iface, "type_bare": type_bare}
+        else:
+            first_key, first_iface, first_signals = by_type[type_bare]
+            if signals != first_signals:
+                first_sig_map = {s[0]: s for s in first_signals}
+                curr_sig_map = {s[0]: s for s in signals}
+                diffs = []
+                missing_in_curr = set(first_sig_map) - set(curr_sig_map)
+                if missing_in_curr:
+                    diffs.append(f"missing signals in '{key}': {sorted(missing_in_curr)}")
+                extra_in_curr = set(curr_sig_map) - set(first_sig_map)
+                if extra_in_curr:
+                    diffs.append(f"extra signals in '{key}': {sorted(extra_in_curr)}")
+                for name in set(first_sig_map) & set(curr_sig_map):
+                    if first_sig_map[name] != curr_sig_map[name]:
+                        diffs.append(
+                            f"signal '{name}' mismatch: '{first_key}' has {first_sig_map[name][1:]}, "
+                            f"'{key}' has {curr_sig_map[name][1:]}"
+                        )
+                diff_msg = "; ".join(diffs) if diffs else "signal ordering or definition difference"
+                raise ValueError(
+                    f"Interface type conflict for '{type_bare}': declarations in '{first_key}' "
+                    f"and '{key}' differ: {diff_msg}"
+                )
+
+    return canonical_ifaces
+
+
 def render_interfaces(bp: dict, env: Environment, out_dir: Path) -> list[Path]:
-    """One SV file per Blueprint shared asset (interface)."""
+    """One SV file per unique Blueprint interface type.
+
+    Reused interface types (e.g. multiple agents sharing the same virtual
+    interface definition) are compatibility-checked; conflicting declarations
+    raise ValueError. Each unique interface type is emitted exactly once.
+    """
+    interfaces = bp["shared_assets"]["interfaces"]
+    canonical_ifaces = check_interface_compatibility(interfaces)
+
     paths = []
     template = env.get_template("interface.sv.j2")
-    for iface in bp["shared_assets"]["interfaces"].values():
-        iface = {**iface, "type_bare": _bare_type(iface["type"])}
+    for type_bare, iface in canonical_ifaces.items():
         out_file = out_dir / _type_to_iface_filename(iface["type"])
         rendered = template.render(
             spec_source=bp["spec_source"],
@@ -243,19 +301,31 @@ def render_package(bp: dict, env: Environment, out_dir: Path) -> list[Path]:
     """The placeholder-classes package (vsequencer, reg_block, reg_adapter, scoreboard)."""
     template = env.get_template("package.sv.j2")
 
+    # Guard register classes by post-synthesis role
+    roles = {
+        c.get("role")
+        for env_inst in bp.get("instances", {}).get("envs", {}).values()
+        for c in env_inst.get("components", {}).values()
+    }
+    has_regmodel = "regmodel" in roles
+    has_reg_adapter = "reg_adapter" in roles
+
     # Collect vendor class names — classes the renderer does NOT generate,
     # listed in the package header for visibility.
     external_classes = sorted({
         c["class_name"]
         for env_inst in bp["instances"]["envs"].values()
         for c in env_inst["components"].values()
-        if c["class_name"] in ("amba_apb_agent", "irq_monitor_agent", "uvm_reg_predictor")
+        if c.get("role") in ("active_agent", "passive_agent", "reg_predictor", "bfm")
+        or c["class_name"] in ("amba_apb_agent", "irq_monitor_agent", "uvm_reg_predictor")
     })
 
     rendered = template.render(
         spec_source=bp["spec_source"],
         block_name=bp["block_name"],
         external_classes=external_classes,
+        has_regmodel=has_regmodel,
+        has_reg_adapter=has_reg_adapter,
     )
     out_file = out_dir / _block_to_filename(bp["block_name"], "pkg")  # simple_timer_pkg.sv
     _write(out_file, rendered)
@@ -409,9 +479,13 @@ def render(blueprint: ComposedBlueprint, out_dir: Path) -> int:
     return 0
 
 
-def render_blueprint(blueprint_path: Path, out_dir: Path) -> int:
+def render_blueprint(
+    blueprint_path: Path,
+    out_dir: Path,
+    stubs_emitted: list[str] | None = None,
+) -> int:
     """Legacy file-based entry point. Load JSON, validate, wrap in a composed
-    Blueprint with default ImplementationContract, delegate to render().
+    Blueprint with explicit ImplementationContract, delegate to render().
 
     For legacy Blueprints that already include T3 vsequencer / T2 stubs in
     semantic, the synthesize_stubs step is a no-op (won't duplicate).
@@ -430,9 +504,19 @@ def render_blueprint(blueprint_path: Path, out_dir: Path) -> int:
           f"{sum(len(e.components) for e in semantic.instances.envs.values())} components, "
           f"{len(semantic.config_db)} config_db entries")
 
-    # Wrap in composed Blueprint. ImplementationContract is empty (no scopes
-    # yet); path_assembler will fill it during render().
-    composed = ComposedBlueprint(semantic=semantic, implementation=ImplementationContract())
+    if stubs_emitted is None:
+        stubs_emitted = (
+            list(BUFFER_STUBS)
+            if "buffer" in semantic.block_name
+            else list(TIMER_STUBS)
+        )
+
+    # Wrap in composed Blueprint. ImplementationContract has explicit stubs_emitted;
+    # path_assembler will fill scopes during render().
+    composed = ComposedBlueprint(
+        semantic=semantic,
+        implementation=ImplementationContract(stubs_emitted=stubs_emitted),
+    )
     return render(composed, out_dir)
 
 

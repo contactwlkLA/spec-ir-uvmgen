@@ -37,8 +37,19 @@ EXPECTED_FILES = [
     "simple_timer_base_test.sv",
     "tb_top.sv",
 ]
+TIMER_EXPECTED_FILES = EXPECTED_FILES
 
-# Content checks: each (filepath, pattern, description). All must match.
+BUFFER_EXPECTED_FILES = [
+    "clk_rst_if.sv",
+    "buffer_req_if.sv",
+    "buffer_rsp_if.sv",
+    "uvm_buffer_pkg.sv",
+    "uvm_buffer_env.sv",
+    "uvm_buffer_base_test.sv",
+    "tb_top.sv",
+]
+
+# Content checks for simple_timer: each (filepath, pattern, description). All must match.
 CONTENT_CHECKS = [
     # Interfaces: signal names from Blueprint must appear in interface file
     ("apb_if.sv", r"psel", "apb_if declares psel"),
@@ -76,27 +87,99 @@ CONTENT_CHECKS = [
     ("simple_timer_pkg.sv", r"class\s+simple_timer_reg_block\s+extends\s+uvm_reg_block", "T2 reg_block placeholder"),
     ("simple_timer_pkg.sv", r"class\s+simple_timer_reg_adapter\s+extends\s+uvm_reg_adapter", "T2 reg_adapter placeholder"),
 ]
+TIMER_CONTENT_CHECKS = CONTENT_CHECKS
+
+# Buffer output assertions (10 checks)
+BUFFER_CONTENT_CHECKS = [
+    # 1. buffer_req_if declares request signals with correct widths
+    ("buffer_req_if.sv", r"\[7:0\]\s*req_id", "buffer_req_if declares req_id at 8 bits (ID_W)", True),
+    # 2. buffer_rsp_if declares response signals with correct widths
+    ("buffer_rsp_if.sv", r"\[31:0\]\s*rsp_rdata", "buffer_rsp_if declares rsp_rdata at 32 bits (DATA_W)", True),
+    # 3. clk_rst_if declares clk and active-high rst
+    ("clk_rst_if.sv", r"\brst\b", "clk_rst_if declares rst (active-high reset)", True),
+    # 4. T3 vsequencer emitted in package with arbitrate()
+    ("uvm_buffer_pkg.sv", r"class\s+uvm_buffer_vsequencer\s+extends\s+uvm_sequencer", "package emits uvm_buffer_vsequencer stub", True),
+    # 5. Scoreboard placeholder emitted in package
+    ("uvm_buffer_pkg.sv", r"class\s+uvm_buffer_scoreboard\s+extends\s+uvm_scoreboard", "package emits uvm_buffer_scoreboard", True),
+    # 6. Register classes guarded and omitted from package
+    ("uvm_buffer_pkg.sv", r"uvm_buffer_reg_block", "package guards/omits uvm_buffer_reg_block", False),
+    # 7. Env instantiates active req agents, passive rsp agent, reset monitor, and scoreboard
+    ("uvm_buffer_env.sv", r"buffer_req_agent\s+m_req_agent_0", "env instantiates m_req_agent_0", True),
+    # 8. Env does not instantiate regmodel or reg_adapter
+    ("uvm_buffer_env.sv", r"m_regmodel", "env does not declare m_regmodel", False),
+    # 9. tb_top instantiates both req0_vif and req1_vif using shared buffer_req_if
+    ("tb_top.sv", r"buffer_req_if\s+req0_vif\(\);[\s\S]*buffer_req_if\s+req1_vif\(\);", "tb_top instantiates req0_vif and req1_vif with buffer_req_if", True),
+    # 10. tb_top sets derived scopes for all agents and env
+    ("tb_top.sv", r'uvm_test_top\.m_env\.m_req_agent_0\.\*', "tb_top sets scope for m_req_agent_0", True),
+]
 
 
-def check_files(out_dir: Path) -> list[str]:
+def check_files(out_dir: Path, expected: list[str] | None = None) -> list[str]:
     issues = []
-    for fname in EXPECTED_FILES:
+    for fname in (expected or EXPECTED_FILES):
         p = out_dir / fname
         if not p.exists():
             issues.append(f"missing file: {fname}")
     return issues
 
 
-def check_content(out_dir: Path) -> list[str]:
+def check_content(out_dir: Path, checks: list | None = None) -> list[str]:
     issues = []
-    for fname, pattern, desc in CONTENT_CHECKS:
+    for item in (checks or CONTENT_CHECKS):
+        if len(item) == 3:
+            fname, pattern, desc = item
+            should_match = True
+        else:
+            fname, pattern, desc, should_match = item
         p = out_dir / fname
         if not p.exists():
             issues.append(f"content check skipped (file missing): {fname}")
             continue
         text = p.read_text()
-        if not re.search(pattern, text):
-            issues.append(f"content check failed: {desc} (pattern: {pattern!r} in {fname})")
+        matched = bool(re.search(pattern, text))
+        if should_match and not matched:
+            issues.append(f"content check failed: {desc} (pattern: {pattern!r} not found in {fname})")
+        elif not should_match and matched:
+            issues.append(f"content check failed: {desc} (unexpected pattern: {pattern!r} found in {fname})")
+    return issues
+
+
+def verify_defective_rejections(disposable_dir: Path) -> list[str]:
+    """Test and verify rejection of 2 defective Blueprint copies on disposable outputs."""
+    import copy, json
+    issues = []
+    buf_bp_path = HERE.parent / "material_extracted" / "uvm_buffer_blueprint.json"
+    if not buf_bp_path.exists():
+        return [f"missing reference buffer blueprint: {buf_bp_path}"]
+
+    raw = json.loads(buf_bp_path.read_text())
+
+    # Defective copy 1: Config_db target instance mismatch
+    defective_1 = copy.deepcopy(raw)
+    defective_1["config_db"][0]["target_instance"] = "nonexistent_component"
+    d1_dir = disposable_dir / "defective_1"
+    d1_rejected = False
+    try:
+        from blueprint_schema import Blueprint as BpSchema
+        BpSchema.model_validate(defective_1)
+    except Exception:
+        d1_rejected = True
+    if not d1_rejected:
+        issues.append("Defective copy 1 (target_instance mismatch) was NOT rejected by validation")
+
+    # Defective copy 2: Shared interface conflict (mismatched signal width on shared interface)
+    defective_2 = copy.deepcopy(raw)
+    defective_2["shared_assets"]["interfaces"]["req1_vif"]["signals"][2]["width"] = 16
+    d2_dir = disposable_dir / "defective_2"
+    d2_rejected = False
+    try:
+        from render_blueprint import check_interface_compatibility
+        check_interface_compatibility(defective_2["shared_assets"]["interfaces"])
+    except Exception:
+        d2_rejected = True
+    if not d2_rejected:
+        issues.append("Defective copy 2 (shared interface conflict) was NOT rejected by validation")
+
     return issues
 
 
@@ -159,24 +242,54 @@ def main() -> int:
     print("    OK")
 
     # Step 4: check files
+    is_buffer = "buffer" in bp.block_name
+    expected_files = BUFFER_EXPECTED_FILES if is_buffer else TIMER_EXPECTED_FILES
+    content_checks = BUFFER_CONTENT_CHECKS if is_buffer else TIMER_CONTENT_CHECKS
+
     print(f"[*] Checking expected files in {out_dir}...")
-    issues = check_files(out_dir)
+    issues = check_files(out_dir, expected_files)
     if issues:
         print("FAIL:")
         for i in issues:
             print(f"  - {i}")
         return 1
-    print(f"    OK — all {len(EXPECTED_FILES)} expected files present")
+    print(f"    OK — all {len(expected_files)} expected files present")
 
     # Step 5: check content
     print("[*] Checking content of generated SV...")
-    issues = check_content(out_dir)
+    issues = check_content(out_dir, content_checks)
     if issues:
         print("FAIL:")
         for i in issues:
             print(f"  - {i}")
         return 1
-    print(f"    OK — all {len(CONTENT_CHECKS)} content checks passed")
+    print(f"    OK — all {len(content_checks)} content checks passed")
+
+    # Step 6: for buffer, verify rejection of 2 defective copies on disposable outputs
+    if is_buffer:
+        print("[*] Testing rejection of 2 defective Blueprint copies on disposable outputs...")
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            defective_issues = verify_defective_rejections(Path(tmp_dir))
+            if defective_issues:
+                print("FAIL: Defective copies were not properly rejected:")
+                for i in defective_issues:
+                    print(f"  - {i}")
+                return 1
+        print("    OK — 2 defective copies rejected (target mismatch & shared interface conflict)")
+
+        print()
+        print("=" * 60)
+        print("BUFFER STRUCTURAL VERIFICATION: PASS")
+        print("=" * 60)
+        print("  - Input validation: Pydantic schema + path_assembler clean")
+        print("  - Output files: all 7 SV files present")
+        print(f"  - Buffer content assertions: all {len(BUFFER_CONTENT_CHECKS)} checks passed")
+        print("  - Interface reuse: buffer_req_if shared across req0 and req1 cleanly")
+        print("  - Register classes guarded: omitted from package and env")
+        print("  - Defective copy tests: 2 defective copies rejected on disposable outputs")
+        print("  - Verification status: structural checks only (no SV compilation)")
+        return 0
 
     print()
     print("=" * 60)

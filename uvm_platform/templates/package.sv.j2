@@ -5,8 +5,12 @@
 //
 // Contains all custom classes for {{ block_name }}:
 //   - {{ block_name }}_vsequencer   (T3 stub: stubbed arbitrate() body)
+{% if has_regmodel %}
 //   - {{ block_name }}_reg_block    (T2 placeholder: real model from SystemRDL)
+{% endif %}
+{% if has_reg_adapter %}
 //   - {{ block_name }}_reg_adapter  (T2 placeholder: real adapter from SystemRDL)
+{% endif %}
 //   - {{ block_name }}_scoreboard   (placeholder: behavior deferred to Stage 2')
 //
 // External classes (NOT generated here, assumed in vendor libs):
@@ -40,6 +44,7 @@ package {{ block_name }}_pkg;
     virtual function void arbitrate();
     endfunction
   endclass
+{% if has_regmodel %}
 
   // -------------------------------------------------------------------------
   // {{ block_name }}_reg_block — T2 placeholder
@@ -54,6 +59,8 @@ package {{ block_name }}_pkg;
       super.new(name, null);
     endfunction
   endclass
+{% endif %}
+{% if has_reg_adapter %}
 
   // -------------------------------------------------------------------------
   // {{ block_name }}_reg_adapter — T2 placeholder
@@ -65,6 +72,7 @@ package {{ block_name }}_pkg;
       super.new(name);
     endfunction
   endclass
+{% endif %}
 
   // -------------------------------------------------------------------------
   // {{ block_name }}_scoreboard — placeholder

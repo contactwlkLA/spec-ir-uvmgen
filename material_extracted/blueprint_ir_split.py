@@ -122,15 +122,23 @@ class FileAssignment:
     filename: str          # e.g. "apb_if.sv" or "simple_timer_pkg.sv"
 
 
+# Allowed stub names:
+StubName = Literal["t3_vsequencer", "t2_regmodel", "t2_reg_adapter"]
+
+# Per-design stub sets:
+TIMER_STUBS: list[StubName] = ["t3_vsequencer", "t2_regmodel", "t2_reg_adapter"]
+BUFFER_STUBS: list[StubName] = ["t3_vsequencer"]
+
+
 @dataclass
 class ImplementationContract:
     """The implementation layer. No spec facts; all derived or constant."""
     scopes: list[ScopeAssignment] = field(default_factory=list)
     file_layout: list[FileAssignment] = field(default_factory=list)
-    # T2/T3 stubs always emitted per MVP-tier tenets (reqspec §2a).
-    # Stored here so the seam between "spec owns" and "tool always emits" is explicit.
-    stubs_emitted: list[Literal["t3_vsequencer", "t2_regmodel", "t2_reg_adapter"]] = field(
-        default_factory=lambda: ["t3_vsequencer", "t2_regmodel", "t2_reg_adapter"]
+    # Stubs emitted per design: buffer is T3-only, timer uses the full set.
+    # Stored here so the seam between "spec owns" and "tool emits" is explicit.
+    stubs_emitted: list[StubName] = field(
+        default_factory=lambda: list(TIMER_STUBS)
     )
     # UVM naming convention: instance names of env children start with this
     # prefix (e.g. "m_" for member variables). The renderer applies this
@@ -324,6 +332,9 @@ def from_legacy(legacy: dict) -> Blueprint:
     }
     assemble_scopes(bp_for_scope)
 
+    block_name = semantic.block_name
+    stubs = list(BUFFER_STUBS) if "buffer" in block_name else list(TIMER_STUBS)
+
     implementation = ImplementationContract(
         scopes=[
             ScopeAssignment(
@@ -333,6 +344,7 @@ def from_legacy(legacy: dict) -> Blueprint:
             )
             for i, entry in enumerate(bp_for_scope["config_db"])
         ],
+        stubs_emitted=stubs,
     )
 
     return Blueprint(semantic=semantic, implementation=implementation)

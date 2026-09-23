@@ -1,16 +1,22 @@
 # spec-ir-uvmgen architecture
 
-**Revision:** 4
-**Date:** 2026-09-22
-**Time:** 02:22 UTC
-**Status:** Initial public release.
+Project: spec-ir-uvmgen 2.0 (SIU 2.0)
 
-## Scope: two implemented tracks, one future integration
+**Revision:** 3.4 (2026-09-22 15:20 PDT)
+**Date:** 2026-09-22
+**Time:** 22:20 UTC
+**Status:** Structural milestone complete for timer and concurrent buffer.
+
+## Scope: two structural generation paths, one reference oracle, future integration
 
 The long-term direction is specification → validated IR → generated UVM →
 observations checked by an oracle. The repository does **not** yet implement
-that complete connected flow. Today it demonstrates a timer structural generator
-and a separate buffer semantic/reference-oracle prototype.
+that complete connected flow. Today it demonstrates:
+1. **Structural UVM generation for two designs**:
+   - `simple_timer`: structured Markdown spec → validated IR → 7 SV files.
+   - `uvm_buffer`: PRD-derived hand-authored Blueprint → 7 SV files (shared-interface deduplication, T3 stub synthesis).
+2. **A separate buffer semantic/reference-oracle prototype** (8/8 hand-authored traces).
+3. **A static contract check** ([task_6_results.md](task_6_results.md)) mapping PRD verification intent to the generated UVM skeleton.
 
 The [platform requirement specification](extensible_uvm_platform_reqspec_v0_3.md)
 is the detailed architectural reference. The [buffer PRD](../uvm_buffer_prd.md)
@@ -55,7 +61,46 @@ The supported demonstration uses the section/table conventions of
 natural-language interpretation service. The former LLM extraction path is
 removed.
 
-## 2. Buffer: semantic candidate and Python reference oracle
+## 2. Buffer: hand-authored Blueprint → structural UVM generation
+
+```text
+uvm_buffer_prd.md (§6 topology, §3.1 concrete parameters)
+  → hand-authored material_extracted/uvm_buffer_blueprint.json
+  → blueprint_schema.py validation
+  → path_assembler.py scope derivation (5 hierarchical scopes)
+  → render_blueprint.py (interface deduplication, BUFFER_STUBS synthesis)
+  → seven SystemVerilog files
+  → verify_render.py content assertions (10 checks) + rejection of defective copies
+```
+
+| Responsibility | Existing implementation |
+| --- | --- |
+| Author buffer Blueprint from PRD topology & concrete mock parameters | `material_extracted/uvm_buffer_blueprint.json` |
+| Validate extracted Blueprint schema, keys, and cross-references | `material_extracted/blueprint_schema.py` |
+| Deduplicate reused interface types (`buffer_req_if`) with compatibility checks | `uvm_platform/render_blueprint.py` (`check_interface_compatibility`) |
+| Control per-design stub emission (`BUFFER_STUBS`: T3 vsequencer only) | `material_extracted/blueprint_ir_split.py` & `uvm_platform/render_blueprint.py` |
+| Derive hierarchical configuration scopes | `material_extracted/path_assembler.py` |
+| Emit 7 SV files (`buffer_req_if`, `buffer_rsp_if`, `clk_rst_if`, pkg, env, test, `tb_top`) | `uvm_platform/render_blueprint.py` + templates |
+| Check expected buffer files, scope wiring, and reject defective copies | `uvm_platform/verify_render.py` |
+
+The buffer Blueprint maps PRD §6 topology and §3.1 concrete parameter widths
+(`MAX_CAPACITY=16, ID_W=8, ADDR_W=8, DATA_W=32, OP_W=1, STATUS_W=1, DELAY_W=4`)
+with mock protocol encodings (`READ=0, WRITE=1, OK=0`).
+
+### Structural boundary
+
+The generated buffer UVM files represent structural scaffolding only:
+- Reused interface types (`buffer_req_if.sv` shared by `req0_vif` and `req1_vif`)
+  are emitted once; declaration compatibility checking prevents conflicting signal
+  widths or declarations.
+- Register model and register adapter placeholders are guarded and omitted from
+  `uvm_buffer_pkg.sv` because the buffer contains no register block; `BUFFER_STUBS`
+  emits only the T3 virtual sequencer stub (`uvm_buffer_vsequencer`).
+- SystemVerilog compilation with commercial simulators, dynamic simulation,
+  procedural sequences, driver/monitor run phases, TLM scoreboard/oracle comparison,
+  and SVA property compilation remain explicitly deferred.
+
+## 3. Buffer: semantic candidate and Python reference oracle
 
 ```text
 uvm_buffer_prd.md
@@ -99,14 +144,17 @@ another verdict channel.
 The eight stories test selected oracle behavior directly. They do not drive
 SystemVerilog, and passing them does not validate a generated scoreboard or DUT.
 
-## 3. Evidence boundaries
+## 4. Evidence boundaries
 
 See [PROOF.md](../PROOF.md) for the authoritative public reproduction commands.
 
 - The timer verifier checks seven expected files and 24 content patterns.
+- The buffer verifier checks seven expected files and 10 content patterns, and confirms rejection of 2 defective copies.
 - The Phase A runner renders a supplied timer JSON fixture and compares its
   baseline files byte-for-byte; it does not re-extract Markdown itself.
 - The buffer harness checks eight selected stories plus ordering guards.
+- The static contract check ([task_6_results.md](task_6_results.md)) records the
+  alignment matrix between PRD §5, the Python oracle, and the generated UVM skeleton.
 - GR-009 validates semantic structure/reference consistency, not full behavioral
   correctness or generation readiness.
 
@@ -115,7 +163,7 @@ is a frozen regression reference, not an independently verified implementation.
 Use disposable output directories when reproducing results; never hand-edit
 fixtures to make a check pass.
 
-## 4. Future UVM → oracle integration
+## 5. Future UVM → oracle integration
 
 This is the missing connection, not an implemented stage:
 
