@@ -1,0 +1,250 @@
+{
+  "spec_source": "uvm_buffer_prd.md (v0.0e; D1 concrete widths: MAX_CAPACITY=16, ID_W=8, ADDR_W=8, DATA_W=32, OP_W=1, STATUS_W=1, DELAY_W=4; D2 mock encodings: READ=0, WRITE=1, OK=0; external: buffer_req_agent, buffer_rsp_agent, buffer_reset_monitor_agent; unimplemented/deferred: behavioral oracle/scoreboard, VCS simulation)",
+  "block_name": "uvm_buffer",
+  "shared_assets": {
+    "interfaces": {
+      "clk_rst_vif": {
+        "key": "clk_rst_vif",
+        "type": "virtual clk_rst_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "clk",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rst",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          }
+        ]
+      },
+      "req0_vif": {
+        "key": "req0_vif",
+        "type": "virtual buffer_req_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "req_valid",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_hold",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_id",
+            "width": 8,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_addr",
+            "width": 8,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_op",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_wdata",
+            "width": 32,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_delay",
+            "width": 4,
+            "direction": "input",
+            "confidence": "explicit"
+          }
+        ]
+      },
+      "req1_vif": {
+        "key": "req1_vif",
+        "type": "virtual buffer_req_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "req_valid",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_hold",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_id",
+            "width": 8,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_addr",
+            "width": 8,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_op",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_wdata",
+            "width": 32,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "req_delay",
+            "width": 4,
+            "direction": "input",
+            "confidence": "explicit"
+          }
+        ]
+      },
+      "rsp_vif": {
+        "key": "rsp_vif",
+        "type": "virtual buffer_rsp_if",
+        "confidence": "explicit",
+        "signals": [
+          {
+            "name": "rsp_valid",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rsp_ready",
+            "width": 1,
+            "direction": "input",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rsp_id",
+            "width": 8,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rsp_rdata",
+            "width": 32,
+            "direction": "output",
+            "confidence": "explicit"
+          },
+          {
+            "name": "rsp_status",
+            "width": 1,
+            "direction": "output",
+            "confidence": "explicit"
+          }
+        ]
+      }
+    }
+  },
+  "instances": {
+    "envs": {
+      "uvm_buffer_env": {
+        "instance_name": "m_env",
+        "class_name": "uvm_buffer_env",
+        "confidence": "explicit",
+        "components": {
+          "m_req_agent_0": {
+            "instance_name": "m_req_agent_0",
+            "class_name": "buffer_req_agent",
+            "role": "active_agent",
+            "vif": "req0_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_req_agent_1": {
+            "instance_name": "m_req_agent_1",
+            "class_name": "buffer_req_agent",
+            "role": "active_agent",
+            "vif": "req1_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_rsp_agent": {
+            "instance_name": "m_rsp_agent",
+            "class_name": "buffer_rsp_agent",
+            "role": "passive_agent",
+            "vif": "rsp_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_reset_monitor": {
+            "instance_name": "m_reset_monitor",
+            "class_name": "buffer_reset_monitor_agent",
+            "role": "passive_agent",
+            "vif": "clk_rst_vif",
+            "confidence": "explicit",
+            "children": {}
+          },
+          "m_scoreboard": {
+            "instance_name": "m_scoreboard",
+            "class_name": "uvm_buffer_scoreboard",
+            "role": "scoreboard",
+            "vif": null,
+            "confidence": "explicit",
+            "children": {}
+          }
+        }
+      }
+    }
+  },
+  "config_db": [
+    {
+      "target_instance": "m_env",
+      "interface_ref": "clk_rst_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_req_agent_0",
+      "interface_ref": "req0_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_req_agent_1",
+      "interface_ref": "req1_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_rsp_agent",
+      "interface_ref": "rsp_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    },
+    {
+      "target_instance": "m_reset_monitor",
+      "interface_ref": "clk_rst_vif",
+      "field_name": "vif",
+      "delivery": "set",
+      "confidence": "explicit"
+    }
+  ]
+}
