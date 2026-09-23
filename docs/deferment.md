@@ -54,6 +54,17 @@ Two kinds of entry — keep them distinct:
   vocabulary, and (b) take gate evidence from `git diff HEAD`, never from
   mid-pass copies.
 
+- Phase-letter drift (doc-sync 2026-09-22, FLOW.md 3.4). The 3.1 entries above
+  call Verification Intent IR "Phase D"; FLOW.md 3.4 reassigns D to buffer
+  structural integration and G to Verification Intent IR. Recorded here instead
+  of editing the older entries (append-only). Read "Phase D" in any pre-3.4
+  entry as "Phase G" under the current FLOW table.
+
+- THEORY_OF_OPERATION.md dangling reference (doc-sync 2026-09-22). The entry
+  above points at a file absent from this public tree; the older entry stands as
+  written (append-only). If that document is not restored, close the Panel B
+  diagram item as resolved-by-absence at the next doc-sync pass.
+
 ---
 
 ## STRIPPED
